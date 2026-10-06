@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Погода в Бишкеке | Bishkek Weather</title>
+  <style>
+    /* 1. CSS Переменные и сброс */
+    :root {
+      --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+      --card-bg: rgba(255, 255, 255, 0.05);
+      --card-border: rgba(255, 255, 255, 0.12);
+      --accent-blue: #38bdf8;
+      --accent-purple: #c084fc;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --radius-lg: 24px;
+      --radius-md: 16px;
+      --radius-sm: 10px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-gradient);
+      background-attachment: fixed;
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 1.5rem;
+    }
+
+    /* Кастомный скроллбар для почасового прогноза */
+    ::-webkit-scrollbar { height: 6px; width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 10px; }
+
+    /* 2. Контейнер приложения */
+    .weather-app {
+      width: 100%;
+      max-width: 900px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+
+    /* Glassmorphism Карточки */
+    .glass-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-lg);
+      padding: 1.75rem;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    /* 3. Шапка сайта */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .city-info h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .city-info p {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin-top: 4px;
+    }
+
+    .badge-live {
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--accent-blue);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      padding: 0.3rem 0.8rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .badge-live::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      background: var(--accent-blue);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--accent-blue);
+    }
+
+    /* 4. Главная секция текущей погоды */
+    .hero-weather {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 2rem;
+      align-items: center;
+      margin-top: 1rem;
+    }
+
+    .temp-box {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+    }
+
+    .weather-icon {
+      font-size: 4.5rem;
+      filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.2));
+    }
+
+    .current-temp {
+      font-size: 4.5rem;
+      font-weight: 800;
+      line-height: 1;
+      background: linear-gradient(180deg, #ffffff, #94a3b8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .condition-desc {
+      font-size: 1.2rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-top: 0.5rem;
+    }
+
+    /* Сеть показателей (Влажность, Ветер и т.д.) */
+    .details-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    .detail-item {
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      padding: 1rem;
+      border-radius: var(--radius-md);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .detail-label {
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .detail-value {
+      font-size: 1.25rem;
+      font-weight: 700;
+    }
+
+    /* 5. Почасовой прогноз (Слайдер) */
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: var(--text-main);
+    }
+
+    .hourly-container {
+      display: flex;
+      gap: 1rem;
+      overflow-x: auto;
+      padding-bottom: 0.5rem;
+    }
+
+    .hourly-card {
+      min-width: 80px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-md);
+      padding: 1rem 0.5rem;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .hourly-card:hover {
+      background: rgba(255, 255, 255, 0.08);
+      transform: translateY(-3px);
+    }
+
+    .hourly-time { font-size: 0.85rem; color: var(--text-muted); }
+    .hourly-icon { font-size: 1.5rem; }
+    .hourly-temp { font-weight: 700; font-size: 1rem; }
+
+    /* 6. Прогноз на неделю */
+    .weekly-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .weekly-item {
+      display: grid;
+      grid-template-columns: 1fr 40px 1fr 80px;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      padding: 0.8rem 1.2rem;
+      border-radius: var(--radius-md);
+    }
+
+    .weekly-day { font-weight: 600; }
+    .weekly-temp-min { color: var(--text-muted); text-align: right; }
+    .weekly-temp-max { font-weight: 700; text-align: right; }
+
+    /* Адаптив для мобилок */
+    @media (max-width: 768px) {
+      .hero-weather { grid-template-columns: 1fr; }
+      .current-temp { font-size: 3.5rem; }
+      .weekly-item { grid-template-columns: 1fr 30px 1fr 70px; font-size: 0.9rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="weather-app">
+    
+    <!-- Главный блок -->
+    <main class="glass-card">
+      <header>
+        <div class="city-info">
+          <h1>Бишкек 🏔️</h1>
+          <p id="current-date">Загрузка даты...</p>
+        </div>
+        <div class="badge-live">LIVE METEO API</div>
+      </header>
+
+      <section class="hero-weather">
+        <div>
+          <div class="temp-box">
+            <div class="weather-icon" id="main-icon">🌤️</div>
+            <div>
+              <div class="current-temp" id="main-temp">--°C</div>
+            </div>
+          </div>
+          <div class="condition-desc" id="main-condition">Получение данных...</div>
+        </div>
+
+        <div class="details-grid">
+          <div class="detail-item">
+            <span class="detail-label">Ощущается</span>
+            <span class="detail-value" id="feels-like">--°C</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Ветер</span>
+            <span class="detail-value" id="wind-speed">-- км/ч</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Влажность</span>
+            <span class="detail-value" id="humidity">--%</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Давление</span>
+            <span class="detail-value" id="pressure">-- гПа</span>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Почасовой прогноз -->
+    <section class="glass-card">
+      <h2 class="section-title">Прогноз на сегодня</h2>
+      <div class="hourly-container" id="hourly-list">
+        <!-- Заполняется из JS -->
+      </div>
+    </section>
+
+    <!-- Прогноз на неделю -->
+    <section class="glass-card">
+      <h2 class="section-title">Прогноз на 7 дней</h2>
+      <div class="weekly-list" id="weekly-list">
+        <!-- Заполняется из JS -->
+      </div>
+    </section>
+
+  </div>
+
+  <script>
+    // Координаты Бишкека
+    const LAT = 42.8746;
+    const LON = 74.5698;
+
+    // Расшифровка WMO кодов погоды в иконки и текст на русском
+    const weatherCodes = {
+      0: { desc: 'Ясно', icon: '☀️' },
+      1: { desc: 'В основном ясно', icon: '🌤️' },
+      2: { desc: 'Переменная облачность', icon: '⛅' },
+      3: { desc: 'Пасмурно', icon: '☁️' },
+      45: { desc: 'Туман', icon: '🌫️' },
+      48: { desc: 'Изморось', icon: '🌫️' },
+      51: { desc: 'Лёгкий моросящий дождь', icon: '🌦️' },
+      61: { desc: 'Небольшой дождь', icon: '🌧️' },
+      63: { desc: 'Умеренный дождь', icon: '🌧️' },
+      65: { desc: 'Сильный дождь', icon: '🌧️' },
+      71: { desc: 'Небольшой снег', icon: '🌨️' },
+      73: { desc: 'Снегопад', icon: '❄️' },
+      80: { desc: 'Ливень', icon: '🌧️' },
+      95: { desc: 'Гроза', icon: '🌩️' }
+    };
+
+    // Форматирование даты
+    function updateDate() {
+      const now = new Date();
+      const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+      document.getElementById('current-date').textContent = now.toLocaleDateString('ru-RU', options);
+    }
+
+    function getWeatherInfo(code) {
+      return weatherCodes[code] || { desc: 'Ясно', icon: '🌤️' };
+    }
+
+    // Загрузка данных с Open-Meteo API
+    async function fetchBishkekWeather() {
+      try {
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,surface_pressure,wind_speed_10m&hourly=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Asia%2FBishkek`;
+
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (!data || !data.current || !data.hourly || !data.daily) {
+          throw new Error('Пустой ответ API');
+        }
+
+        // 1. Текущая погода
+        const current = data.current;
+        const codeInfo = getWeatherInfo(current.weather_code);
+
+        document.getElementById('main-temp').textContent = `${Math.round(current.temperature_2m)}°C`;
+        document.getElementById('main-icon').textContent = codeInfo.icon;
+        document.getElementById('main-condition').textContent = codeInfo.desc;
+        document.getElementById('feels-like').textContent = `${Math.round(current.apparent_temperature)}°C`;
+        document.getElementById('wind-speed').textContent = `${Math.round(current.wind_speed_10m)} км/ч`;
+        document.getElementById('humidity').textContent = `${current.relative_humidity_2m}%`;
+        document.getElementById('pressure').textContent = `${Math.round(current.surface_pressure)} гПа`;
+
+        // 2. Почасовой прогноз (ближайшие 12 часов)
+        const hourlyList = document.getElementById('hourly-list');
+        hourlyList.innerHTML = '';
+
+        const currentHour = new Date().getHours();
+        const hourlyCount = Math.min(12, data.hourly.time.length - currentHour);
+
+        for (let offset = 0; offset < hourlyCount; offset++) {
+          const idx = currentHour + offset;
+          const time = new Date(data.hourly.time[idx]);
+
+          if (Number.isNaN(time.getTime())) {
+            continue;
+          }
+
+          const timeStr = time.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+          const hCode = data.hourly.weather_code[idx];
+          const hIcon = getWeatherInfo(hCode).icon;
+          const hTemp = Math.round(data.hourly.temperature_2m[idx]);
+
+          hourlyList.innerHTML += `
+            <div class="hourly-card">
+              <span class="hourly-time">${timeStr}</span>
+              <span class="hourly-icon">${hIcon}</span>
+              <span class="hourly-temp">${hTemp}°C</span>
+            </div>
+          `;
+        }
+
+        if (!hourlyList.innerHTML.trim()) {
+          hourlyList.innerHTML = '<p style="color: var(--text-muted);">Данные по часам временно недоступны.</p>';
+        }
+
+        // 3. Прогноз на 7 дней
+        const weeklyList = document.getElementById('weekly-list');
+        weeklyList.innerHTML = '';
+
+        data.daily.time.forEach((dayStr, index) => {
+          const date = new Date(dayStr);
+          const dayName = index === 0 ? 'Сегодня' : date.toLocaleDateString('ru-RU', { weekday: 'short' });
+          const wCode = data.daily.weather_code[index];
+          const wIcon = getWeatherInfo(wCode).icon;
+          const minTemp = Math.round(data.daily.temperature_2m_min[index]);
+          const maxTemp = Math.round(data.daily.temperature_2m_max[index]);
+
+          weeklyList.innerHTML += `
+            <div class="weekly-item">
+              <span class="weekly-day">${dayName}</span>
+              <span style="font-size: 1.2rem;">${wIcon}</span>
+              <span class="weekly-temp-min">${minTemp}°</span>
+              <span class="weekly-temp-max">${maxTemp}°C</span>
+            </div>
+          `;
+        });
+
+      } catch (error) {
+        console.error('Ошибка загрузки погоды:', error);
+        document.getElementById('main-condition').textContent = 'Не удалось загрузить данные погоды';
+        document.getElementById('hourly-list').innerHTML = '<p style="color: var(--text-muted);">Прогноз недоступен.</p>';
+        document.getElementById('weekly-list').innerHTML = '<p style="color: var(--text-muted);">Проблема с загрузкой прогноза.</p>';
+      }
+    }
+
+    // Старт работы
+    updateDate();
+    fetchBishkekWeather();
+  </script>
+</body>
+</html>
